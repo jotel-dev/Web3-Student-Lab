@@ -1,9 +1,9 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { requestLogger } from './middleware/requestLogger.js';
-import routes from './routes/index.js';
-import prisma from './db/index.js';
+import { requestLogger } from './middleware/requestLogger';
+import routes from './routes/index';
+import prisma from './db/index';
 
 dotenv.config();
 

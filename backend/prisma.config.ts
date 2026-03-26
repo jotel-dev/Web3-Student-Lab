@@ -14,10 +14,11 @@ const adapter = new PrismaPg(pool);
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
-  migrations: {
-    path: 'prisma/migrations',
-  },
   datasource: {
     url: connectionString,
+  },
+  migrations: {
+    path: 'prisma/migrations',
+    seed: 'tsx prisma/seed.ts',
   },
 });

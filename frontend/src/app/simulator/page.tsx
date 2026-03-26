@@ -1,8 +1,18 @@
-export default function Page() {
+export default function SimulatorPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold">Blockchain Learning Simulator</h1>
-      <p className="mt-4">Visually learn how blockchains work.</p>
+    <div className="min-h-[calc(100vh-80px)] bg-black text-white p-12 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="max-w-4xl mx-auto relative z-10 border-l-4 border-red-600 pl-8 py-4">
+        <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight mb-4">
+          Network <span className="text-red-500">Simulator</span>
+        </h1>
+        <p className="text-xl text-gray-400 font-light mb-8 font-mono">
+          System Status: Consensus engine booting...
+        </p>
+        <div className="bg-zinc-950 border border-white/10 p-8 rounded-xl shadow-[0_0_30px_rgba(220,38,38,0.05)]">
+          <p className="text-gray-500 tracking-wide">Visually learn how blockchains work.</p>
+        </div>
+      </div>
     </div>
   );
 }

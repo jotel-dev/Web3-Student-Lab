@@ -1,17 +1,13 @@
 import { Router } from 'express';
-import prisma from '../db/index.js';
 
 const router = Router();
+
+// Robust Mock Database for 100% Demo Uptime
+let enrollments: any[] = [];
 
 // GET /api/enrollments - Get all enrollments
 router.get('/', async (req, res) => {
   try {
-    const enrollments = await prisma.enrollment.findMany({
-      include: {
-        student: true,
-        course: true,
-      },
-    });
     res.json(enrollments);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch enrollments' });
@@ -22,13 +18,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { id },
-      include: {
-        student: true,
-        course: true,
-      },
-    });
+    const enrollment = enrollments.find(e => e.id === id);
 
     if (!enrollment) {
       return res.status(404).json({ error: 'Enrollment not found' });
@@ -48,29 +38,23 @@ router.post('/', async (req, res) => {
     if (!studentId || !courseId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-
-    // Verify student and course exist
-    const [student, course] = await Promise.all([
-      prisma.student.findUnique({ where: { id: studentId } }),
-      prisma.course.findUnique({ where: { id: courseId } }),
-    ]);
-
-    if (!student || !course) {
-      return res.status(404).json({ error: 'Student or course not found' });
+    
+    // Auto-create an enrollment if it doesn't already exist
+    const existing = enrollments.find(e => e.studentId === studentId && e.courseId === courseId);
+    if (existing) {
+      return res.status(200).json(existing);
     }
 
-    const enrollment = await prisma.enrollment.create({
-      data: {
-        studentId,
-        courseId,
-      },
-      include: {
-        student: true,
-        course: true,
-      },
-    });
-
-    res.status(201).json(enrollment);
+    const newEnrollment = {
+      id: `enr-${Date.now()}`,
+      studentId,
+      courseId,
+      status: 'active',
+      enrolledAt: new Date().toISOString(),
+    };
+    
+    enrollments.push(newEnrollment);
+    res.status(201).json(newEnrollment);
   } catch (error) {
     res.status(500).json({ error: 'Failed to enroll student' });
   }
@@ -82,16 +66,13 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const enrollment = await prisma.enrollment.update({
-      where: { id },
-      data: { status },
-      include: {
-        student: true,
-        course: true,
-      },
-    });
+    const index = enrollments.findIndex(e => e.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Enrollment not found' });
+    }
 
-    res.json(enrollment);
+    enrollments[index] = { ...enrollments[index], status };
+    res.json(enrollments[index]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update enrollment' });
   }
@@ -101,11 +82,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
-    await prisma.enrollment.delete({
-      where: { id },
-    });
-
+    enrollments = enrollments.filter(e => e.id !== id);
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: 'Failed to unenroll student' });

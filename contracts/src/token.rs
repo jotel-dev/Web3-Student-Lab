@@ -1,4 +1,4 @@
-use soroban_sdk::{contract, contracterror, contractimpl, panic_with_error, Address, Env};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, panic_with_error, Address, Env};
 
 #[contracttype]
 #[derive(Clone)]
@@ -8,7 +8,7 @@ enum DataKey {
 }
 
 #[contracterror]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TokenError {
     AlreadyInitialized = 1,
     NotAuthorized = 2,

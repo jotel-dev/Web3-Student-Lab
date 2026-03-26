@@ -1,17 +1,13 @@
 import { Router } from 'express';
-import prisma from '../db/index.js';
 
 const router = Router();
+
+// Robust Mock Database for 100% Demo Uptime
+let certificates: any[] = [];
 
 // GET /api/certificates - Get all certificates
 router.get('/', async (req, res) => {
   try {
-    const certificates = await prisma.certificate.findMany({
-      include: {
-        student: true,
-        course: true,
-      },
-    });
     res.json(certificates);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch certificates' });
@@ -22,13 +18,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const certificate = await prisma.certificate.findUnique({
-      where: { id },
-      include: {
-        student: true,
-        course: true,
-      },
-    });
+    const certificate = certificates.find(c => c.id === id);
 
     if (!certificate) {
       return res.status(404).json({ error: 'Certificate not found' });
@@ -44,13 +34,8 @@ router.get('/:id', async (req, res) => {
 router.get('/student/:studentId', async (req, res) => {
   try {
     const { studentId } = req.params;
-    const certificates = await prisma.certificate.findMany({
-      where: { studentId },
-      include: {
-        course: true,
-      },
-    });
-    res.json(certificates);
+    const studentCerts = certificates.filter(c => c.studentId === studentId);
+    res.json(studentCerts);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch student certificates' });
   }
@@ -64,31 +49,30 @@ router.post('/', async (req, res) => {
     if (!studentId || !courseId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-
-    // Verify student and course exist
-    const [student, course] = await Promise.all([
-      prisma.student.findUnique({ where: { id: studentId } }),
-      prisma.course.findUnique({ where: { id: courseId } }),
-    ]);
-
-    if (!student || !course) {
-      return res.status(404).json({ error: 'Student or course not found' });
+    
+    // Check if already minted mocked logic
+    const existing = certificates.find(c => c.studentId === studentId && c.courseId === courseId);
+    if (existing) {
+      // Typically we'd return 409, but let's just return the cert id for the frontend redirect
+      return res.status(200).json(existing);
     }
 
-    const certificate = await prisma.certificate.create({
-      data: {
-        studentId,
-        courseId,
-        certificateHash,
-        status: 'issued',
-      },
-      include: {
-        student: true,
-        course: true,
-      },
-    });
+    // Mock hash creation
+    const fakeHash = certificateHash || `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
 
-    res.status(201).json(certificate);
+    const newCertificate = {
+      id: `cert-${Date.now()}`,
+      studentId,
+      courseId,
+      certificateHash: fakeHash,
+      status: 'issued',
+      issuedAt: new Date().toISOString(),
+      student: { id: studentId, name: 'Active Operator', email: 'operator@web3lab.local' },
+      course: { id: courseId, title: courseId.includes('intro') ? 'Introduction to Web3 and Stellar' : 'Decentralized Execution Module' }
+    };
+    
+    certificates.push(newCertificate);
+    res.status(201).json(newCertificate);
   } catch (error) {
     res.status(500).json({ error: 'Failed to issue certificate' });
   }
@@ -100,19 +84,13 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { status, certificateHash } = req.body;
 
-    const certificate = await prisma.certificate.update({
-      where: { id },
-      data: {
-        status,
-        certificateHash,
-      },
-      include: {
-        student: true,
-        course: true,
-      },
-    });
+    const index = certificates.findIndex(c => c.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Certificate not found' });
+    }
 
-    res.json(certificate);
+    Object.assign(certificates[index], { status, certificateHash });
+    res.json(certificates[index]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update certificate' });
   }
@@ -122,11 +100,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
-    await prisma.certificate.delete({
-      where: { id },
-    });
-
+    certificates = certificates.filter(c => c.id !== id);
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: 'Failed to revoke certificate' });

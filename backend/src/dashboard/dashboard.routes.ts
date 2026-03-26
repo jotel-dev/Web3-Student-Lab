@@ -1,7 +1,21 @@
 import { Request, Response, Router } from 'express';
-import { getStudentDashboard } from './dashboard.service.js';
+import { getStudentDashboard, getStats } from './dashboard.service.js';
 
 const router = Router();
+
+/**
+ * @route   GET /api/dashboard/stats
+ * @desc    Get global platform statistics (Resilient with mock fallback)
+ * @access  Public
+ */
+router.get('/stats', async (req: Request, res: Response) => {
+  try {
+    const stats = await getStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch platform stats' });
+  }
+});
 
 /**
  * @route   GET /api/dashboard/:studentId
