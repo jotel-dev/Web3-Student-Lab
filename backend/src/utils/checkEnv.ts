@@ -84,6 +84,10 @@ const OPTIONAL_VARS: Record<string, { defaultValue: string; description: string 
     defaultValue: 'https://soroban-testnet.stellar.org',
     description: 'Soroban RPC URL for smart contract interactions',
   },
+  CERTIFICATE_CONTRACT_ID: {
+    defaultValue: '',
+    description: 'Deployed Soroban certificate contract ID',
+  },
   CERTIFICATE_VALIDITY_DAYS: {
     defaultValue: '365',
     description: 'Default certificate validity period in days',

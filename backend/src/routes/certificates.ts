@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { verifyCertificateOnChain } from '../blockchain/blockchain.service.js';
 
 const router = Router();
 
@@ -49,7 +50,7 @@ router.post('/', async (req, res) => {
     if (!studentId || !courseId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    
+
     // Check if already minted mocked logic
     const existing = certificates.find(c => c.studentId === studentId && c.courseId === courseId);
     if (existing) {
@@ -70,7 +71,7 @@ router.post('/', async (req, res) => {
       student: { id: studentId, name: 'Active Operator', email: 'operator@web3lab.local' },
       course: { id: courseId, title: courseId.includes('intro') ? 'Introduction to Web3 and Stellar' : 'Decentralized Execution Module' }
     };
-    
+
     certificates.push(newCertificate);
     res.status(201).json(newCertificate);
   } catch (error) {
@@ -104,6 +105,34 @@ router.delete('/:id', async (req, res) => {
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: 'Failed to revoke certificate' });
+  }
+});
+
+// GET /api/certificates/verify/:symbol - Verify certificate on-chain
+router.get('/verify/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+
+    if (!symbol) {
+      return res.status(400).json({ error: 'Certificate symbol is required' });
+    }
+
+    const certificateData = await verifyCertificateOnChain(symbol);
+
+    if (certificateData) {
+      res.json({
+        verified: true,
+        certificate: certificateData,
+      });
+    } else {
+      res.json({
+        verified: false,
+        message: 'Certificate not found on blockchain',
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying certificate:', error);
+    res.status(500).json({ error: 'Failed to verify certificate on blockchain' });
   }
 });
 
