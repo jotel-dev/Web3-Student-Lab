@@ -1,5 +1,7 @@
 #![no_std]
 
+pub mod payment_gateway;
+pub mod staking;
 pub mod token;
 
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec};
