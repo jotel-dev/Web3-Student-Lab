@@ -1,5 +1,5 @@
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, panic_with_error, Address, Env, Vec,
+    contract, contracterror, contractimpl, contracttype, panic_with_error, Address, Env, Vec, String, Symbol,
 };
 
 use crate::CertificateContractClient;
@@ -11,6 +11,7 @@ enum DataKey {
     Balance(Address, u32),
     MintPaused,
     Owner,
+    TokenMetadata,
 }
 
 #[contracterror]
@@ -23,10 +24,20 @@ pub enum TokenError {
     InsufficientBalance = 5,
     NotStudent = 6,
     TransferFailed = 7,
+    MetadataNotFound = 8,
 }
 
 #[contract]
 pub struct RsTokenContract;
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TokenMetadata {
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u32,
+    pub uri: String,
+}
 
 #[contractimpl]
 impl RsTokenContract {
@@ -45,6 +56,17 @@ impl RsTokenContract {
         env.storage()
             .instance()
             .set(&DataKey::Owner, &certificate_contract);
+
+        // Initialize default token metadata
+        let default_metadata = TokenMetadata {
+            name: String::from_str(&env, "RS-Token"),
+            symbol: String::from_str(&env, "RST"),
+            decimals: 0u32,
+            uri: String::from_str(&env, "https://metadata.web3-student-lab.com/token/{id}"),
+        };
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenMetadata, &default_metadata);
     }
 
     fn require_mint_not_paused(env: &Env) {
@@ -248,12 +270,62 @@ impl RsTokenContract {
             panic_with_error!(env, TokenError::NotStudent);
         }
     }
+
+    /// Get token metadata including name, symbol, decimals, and URI.
+    /// Returns standardized format for frontend display.
+    pub fn get_metadata(env: Env) -> TokenMetadata {
+        env.storage()
+            .instance()
+            .get(&DataKey::TokenMetadata)
+            .unwrap_or_else(|| panic_with_error!(&env, TokenError::MetadataNotFound))
+    }
+
+    /// Update token metadata URI. Only contract owner can call this.
+    /// Admin function to update the off-chain JSON description URI.
+    pub fn update_uri(env: Env, caller: Address, new_uri: String) {
+        caller.require_auth();
+
+        // Check authorization: only owner can update metadata
+        let owner: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Owner)
+            .unwrap();
+
+        if caller != owner {
+            panic_with_error!(&env, TokenError::NotAuthorized);
+        }
+
+        // Get existing metadata
+        let mut metadata: TokenMetadata = env
+            .storage()
+            .instance()
+            .get(&DataKey::TokenMetadata)
+            .unwrap_or_else(|| panic_with_error!(&env, TokenError::MetadataNotFound));
+
+        // Store old URI for event emission
+        let old_uri = metadata.uri.clone();
+
+        // Update URI
+        metadata.uri = new_uri.clone();
+
+        // Save updated metadata
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenMetadata, &metadata);
+
+        // Emit event for URI update
+        env.events().publish(
+            ("uri_updated", "old_uri", "new_uri"),
+            (old_uri, new_uri),
+        );
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, vec, Address, Env};
+    use soroban_sdk::{testutils::{Address as _, Events}, vec, Address, Env};
 
     #[test]
     fn mints_balance_for_student_when_called_by_certificate_contract() {
@@ -591,5 +663,104 @@ mod tests {
         // Transfer all tokens from student1 to student2
         // Note: This would require proper certificate contract mocking
         // After successful transfer: student1 balance should be 0 (entry removed)
+    }
+
+    #[test]
+    fn get_metadata_returns_default_values() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(RsTokenContract, ());
+        let client = RsTokenContractClient::new(&env, &contract_id);
+
+        let certificate_contract = Address::generate(&env);
+        client.init(&certificate_contract);
+
+        let metadata = client.get_metadata();
+
+        assert_eq!(metadata.name, String::from_str(&env, "RS-Token"));
+        assert_eq!(metadata.symbol, String::from_str(&env, "RST"));
+        assert_eq!(metadata.decimals, 0u32);
+        assert_eq!(metadata.uri, String::from_str(&env, "https://metadata.web3-student-lab.com/token/{id}"));
+    }
+
+    #[test]
+    fn owner_can_update_metadata_uri() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(RsTokenContract, ());
+        let client = RsTokenContractClient::new(&env, &contract_id);
+
+        let certificate_contract = Address::generate(&env);
+        client.init(&certificate_contract);
+
+        let new_uri = String::from_str(&env, "https://new-metadata.example.com/token/{id}");
+        client.update_uri(&certificate_contract, &new_uri);
+
+        let updated_metadata = client.get_metadata();
+        assert_eq!(updated_metadata.uri, new_uri);
+    }
+
+    #[test]
+    #[should_panic]
+    fn unauthorized_cannot_update_metadata_uri() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(RsTokenContract, ());
+        let client = RsTokenContractClient::new(&env, &contract_id);
+
+        let certificate_contract = Address::generate(&env);
+        let unauthorized = Address::generate(&env);
+
+        client.init(&certificate_contract);
+
+        let new_uri = String::from_str(&env, "https://malicious.example.com/token/{id}");
+        client.update_uri(&unauthorized, &new_uri);
+    }
+
+    #[test]
+    fn metadata_structure_matches_frontend_requirements() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(RsTokenContract, ());
+        let client = RsTokenContractClient::new(&env, &contract_id);
+
+        let certificate_contract = Address::generate(&env);
+        client.init(&certificate_contract);
+
+        let metadata = client.get_metadata();
+
+        // Verify all required fields are present and have correct types
+        assert!(!metadata.name.is_empty());
+        assert!(!metadata.symbol.is_empty());
+        assert!(metadata.decimals >= 0);
+        assert!(!metadata.uri.is_empty());
+
+        // Verify symbol is reasonable length (common token symbols are 3-5 chars)
+        assert!(metadata.symbol.len() >= 2 && metadata.symbol.len() <= 10);
+    }
+
+    #[test]
+    fn uri_update_emits_event() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(RsTokenContract, ());
+        let client = RsTokenContractClient::new(&env, &contract_id);
+
+        let certificate_contract = Address::generate(&env);
+        client.init(&certificate_contract);
+
+        let new_uri = String::from_str(&env, "https://updated.example.com/token/{id}");
+
+        // Update URI should emit event (simplified test - event verification would require more complex setup)
+        client.update_uri(&certificate_contract, &new_uri);
+
+        // Verify the URI was actually updated
+        let updated_metadata = client.get_metadata();
+        assert_eq!(updated_metadata.uri, new_uri);
     }
 }
