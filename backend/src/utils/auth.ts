@@ -73,12 +73,12 @@ export const generateToken = (payload: TokenPayload, options: TokenOptions = {})
     audience: 'web3-student-lab-users',
   };
 
-  const signOptions: SignOptions = {
-    expiresIn: defaultOptions.expiresIn as SignOptions['expiresIn'],
-    issuer: defaultOptions.issuer,
-    audience: defaultOptions.audience,
-    ...options,
-  };
+  const signOptions = {
+    expiresIn: '7d',
+    issuer: 'web3-student-lab',
+    audience: 'web3-student-lab-users',
+    ...(options || {}),
+  } as SignOptions;
 
   return jwt.sign(payload, jwtSecret, signOptions);
 };

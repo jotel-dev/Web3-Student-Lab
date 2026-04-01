@@ -89,14 +89,19 @@ router.put('/:id', async (req, res) => {
     const { email, firstName, lastName, did } = req.body;
     const normalizedDid = normalizeSorobanDid(did);
 
+    const updateData: any = {
+      email,
+      firstName,
+      lastName,
+    };
+
+    if (normalizedDid !== undefined) {
+      updateData.did = normalizedDid;
+    }
+
     const student = await prisma.student.update({
       where: { id },
-      data: {
-        email,
-        firstName,
-        lastName,
-        did: normalizedDid !== undefined ? normalizedDid : undefined,
-      },
+      data: updateData,
     });
 
     if (normalizedDid !== undefined) {

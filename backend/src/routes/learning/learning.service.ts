@@ -1,17 +1,17 @@
 import prisma from '../../db/index.js';
 import { COURSES, getCurriculumForCourse } from './curriculum.data.js';
 import {
-    CurriculumCourse,
-    Module,
-    Progress,
-    ProgressStatus,
-    ProgressUpdateInput,
+  CurriculumCourse,
+  Module,
+  Progress,
+  ProgressStatus,
+  ProgressUpdateInput,
 } from './types.js';
 
 // In-memory mock store for demo resilience
 const mockProgressStore: Record<string, Progress> = {};
 
-const toProgress = (progress: Progress): Progress => ({
+const toProgress = (progress: any): Progress => ({
   id: progress.id,
   studentId: progress.studentId,
   courseId: progress.courseId,
@@ -80,15 +80,22 @@ export const listCourses = async (difficulty?: string): Promise<CurriculumCourse
       orderBy: { createdAt: 'asc' },
     });
 
-    return courses.map((course: { id: string }) => ({
-      ...course,
+    return courses.map((course) => ({
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      instructor: course.instructor,
+      credits: course.credits,
+      createdAt: course.createdAt,
+      updatedAt: course.updatedAt,
       modules: filterModulesByDifficulty(getCurriculumForCourse(course.id), difficulty),
     }));
   } catch (_error) {
     console.warn('Database error in listCourses, falling back to mock data');
     const now = new Date();
     return COURSES.map((course) => ({
-      ...course,
+      id: course.id,
+      title: course.title,
       description: course.description || null,
       instructor: 'Web3 Student Lab',
       credits: 10,
@@ -118,7 +125,8 @@ export const getCourseCurriculum = async (
       if (mockCourse) {
         const now = new Date();
         return {
-          ...mockCourse,
+          id: mockCourse.id,
+          title: mockCourse.title,
           description: mockCourse.description || null,
           instructor: 'Web3 Student Lab',
           credits: 10,
@@ -131,7 +139,13 @@ export const getCourseCurriculum = async (
     }
 
     return {
-      ...course,
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      instructor: course.instructor,
+      credits: course.credits,
+      createdAt: course.createdAt,
+      updatedAt: course.updatedAt,
       modules: filterModulesByDifficulty(getCurriculumForCourse(course.id), difficulty),
     };
   } catch (_error) {
