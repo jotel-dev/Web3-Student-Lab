@@ -14,7 +14,13 @@ mod admin_tests {
     };
     use soroban_sdk::{testutils::Address as _, Address, Env};
 
-    fn setup_test() -> (Env, CertificateContractClient<'static>, Address, Address, Address) {
+    fn setup_test() -> (
+        Env,
+        CertificateContractClient<'static>,
+        Address,
+        Address,
+        Address,
+    ) {
         let env = Env::default();
         env.mock_all_auths();
 

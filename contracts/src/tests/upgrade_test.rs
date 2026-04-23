@@ -12,7 +12,13 @@ mod upgrade_tests {
     use crate::{CertificateContract, CertificateContractClient};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, String};
 
-    fn setup_test() -> (Env, CertificateContractClient<'static>, Address, Address, Address) {
+    fn setup_test() -> (
+        Env,
+        CertificateContractClient<'static>,
+        Address,
+        Address,
+        Address,
+    ) {
         let env = Env::default();
         env.mock_all_auths();
 
